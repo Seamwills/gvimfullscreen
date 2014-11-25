@@ -74,7 +74,7 @@ LONG _declspec(dllexport) ToggleFullScreen()
 			SetWindowLong(hTop, GWL_EXSTYLE, GetWindowLong(hTop, GWL_STYLE) & ~WS_EX_CLIENTEDGE);
 			SetWindowLong(hTop, GWL_EXSTYLE, GetWindowLong(hTop, GWL_STYLE) & ~WS_EX_WINDOWEDGE);
 
-			SetWindowPos(hTop, HWND_TOP, g_x, g_y, g_dx, g_dy, SWP_SHOWWINDOW);
+			SetWindowPos(hTop, HWND_TOP, g_x, g_y, g_dx + 6, g_dy + 15, SWP_SHOWWINDOW);
 
 			/* Now need to find the child text area window
 			 * and set it's size accordingly
