@@ -9,12 +9,12 @@ int g_x, g_y, g_dx, g_dy;
 
 BOOL CALLBACK EnumChildProc(HWND hwnd, LPARAM lParam);
 
-BOOL CALLBACK FindWindowProc(HWND hwnd, LPARAM lParam)
-{
+BOOL CALLBACK EnumChildProc(HWND hwnd, LPARAM lParam);
+
+BOOL CALLBACK FindWindowProc(HWND hwnd, LPARAM lParam) {
 	HWND* pphWnd = (HWND*)lParam;
 
-	if (GetParent(hwnd))
-    {
+	if (GetParent(hwnd)) {
 		*pphWnd = NULL;
 		return TRUE;
 	}
@@ -22,20 +22,16 @@ BOOL CALLBACK FindWindowProc(HWND hwnd, LPARAM lParam)
 	return FALSE;
 }
 
-LONG _declspec(dllexport) ToggleFullScreen()
-{
+LONG _declspec(dllexport) ToggleFullScreen() {
 	HWND hTop = NULL;
-	DWORD dwThreadID;
+	HWND hTextArea = NULL;
 
-	dwThreadID = GetCurrentThreadId();
-	EnumThreadWindows(dwThreadID, FindWindowProc, (LPARAM)&hTop);
+	EnumThreadWindows(GetCurrentThreadId(), FindWindowProc, (LPARAM)&hTop);
+	hTextArea = FindWindowEx(hTop, NULL, "VimTextArea", "Vim text area");
 
-	if (hTop)
-    {
+	if (hTop != NULL && hTextArea != NULL) {
 		/* Determine the current state of the window */
-
-		if ( GetWindowLong(hTop, GWL_STYLE) & WS_CAPTION )
-        {
+		if ( GetWindowLong(hTop, GWL_STYLE) & WS_CAPTION ) {
 			/* Has a caption, so isn't maximised */
 
 			MONITORINFO mi;
@@ -45,9 +41,20 @@ LONG _declspec(dllexport) ToggleFullScreen()
 			char p[MAX_PATH];
 
 			z = (long unsigned int)IsZoomed(hTop)?1:0;
-			if(z){
+			if(z) {
 				SendMessage(hTop, WM_SYSCOMMAND, SC_RESTORE, 0);
 			}
+
+            HDC dc = GetDC(hTextArea);
+            COLORREF rgb;
+
+            if (GetClientRect(hTextArea, &rc))
+                rgb = GetPixel(dc, rc.right - 2, rc.bottom - 2);
+
+            SetDCBrushColor(dc, rgb);
+            SetClassLongPtr(hTextArea, GCLP_HBRBACKGROUND, GetStockObject(DC_BRUSH));
+            ReleaseDC(hTextArea, dc);
+
 
 			GetWindowRect(hTop, &rc);
 			sprintf(p, "gVim_Position=%ld\t%ld\t%ld\t%ld\t%d", rc.left, rc.top, rc.right-rc.left, rc.bottom-rc.top, z);
@@ -65,8 +72,6 @@ LONG _declspec(dllexport) ToggleFullScreen()
 			g_y = mi.rcMonitor.top;
 			g_dx = mi.rcMonitor.right - g_x;
 			g_dy = mi.rcMonitor.bottom - g_y;
-			//cx = GetSystemMetrics(SM_CXSCREEN);
-			//cy = GetSystemMetrics(SM_CYSCREEN);
 
 			/* Remove border, caption, and edges */
 			SetWindowLong(hTop, GWL_STYLE, GetWindowLong(hTop, GWL_EXSTYLE) & ~WS_BORDER);
@@ -74,15 +79,13 @@ LONG _declspec(dllexport) ToggleFullScreen()
 			SetWindowLong(hTop, GWL_EXSTYLE, GetWindowLong(hTop, GWL_STYLE) & ~WS_EX_CLIENTEDGE);
 			SetWindowLong(hTop, GWL_EXSTYLE, GetWindowLong(hTop, GWL_STYLE) & ~WS_EX_WINDOWEDGE);
 
-			SetWindowPos(hTop, HWND_TOP, g_x, g_y, g_dx + 6, g_dy + 15, SWP_SHOWWINDOW);
+			SetWindowPos(hTop, HWND_TOP, g_x, g_y, g_dx, g_dy, SWP_SHOWWINDOW);
 
-			/* Now need to find the child text area window
-			 * and set it's size accordingly
-			 */
+			SetWindowLong(hTextArea, GWL_EXSTYLE, GetWindowLong(hTextArea, GWL_EXSTYLE) & ~WS_EX_CLIENTEDGE); 
+			SetWindowPos(hTextArea, HWND_TOP, 0, 0, g_dx, g_dy, SWP_SHOWWINDOW);
+
 			EnumChildWindows(hTop, EnumChildProc, 0);
-		}
-        else
-        {
+		} else {
 			long unsigned int L, R, W, H, Z;
 			char *p;
 
@@ -98,18 +101,21 @@ LONG _declspec(dllexport) ToggleFullScreen()
 			SetWindowLong(hTop, GWL_STYLE, GetWindowLong(hTop, GWL_STYLE) | WS_THICKFRAME);
 			SetWindowLong(hTop, GWL_STYLE, GetWindowLong(hTop, GWL_STYLE) | WS_DLGFRAME);
 
-			if((p = getenv("gVim_Position")) != NULL){
-				//MessageBox(NULL, (char *)p, "", MB_OK);
+			if((p = getenv("gVim_Position")) != NULL) {
 				sscanf(p, "%ld\t%ld\t%ld\t%ld\t%d", &L, &R, &W, &H, &Z);
-				/*SetWindowPos(hTop, HWND_NOTOPMOST, L, R, W, H, SWP_SHOWWINDOW);*/
 				SetWindowPos(hTop, HWND_TOP, L, R, W, H, SWP_SHOWWINDOW);
-				if(Z){
+				if(Z) {
 					SendMessage(hTop, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
 				}
 			}
-
-			SendMessage(hTop, WM_SYSCOMMAND, SC_RESTORE, 0);
+			SendMessage(hTop, WM_SYSCOMMAND, SC_RESTORE, 0);            
 		}
+
+#ifdef _WIN64
+		SetClassLongPtr(hTextArea, GCLP_HBRBACKGROUND, (LONG)GetStockObject(DC_BRUSH));
+#else
+		SetClassLong(hTextArea, GCL_HBRBACKGROUND, (LONG)GetStockObject(DC_BRUSH));
+#endif
 	}
 	return GetLastError();
 }
