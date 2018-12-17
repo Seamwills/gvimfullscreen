@@ -4,6 +4,7 @@
  :call libcallnr("gvimfullscreen.dll", "ToggleFullScreen", 1)
 */
 #include <windows.h>
+#include <stdio.h>
 
 int g_x, g_y, g_dx, g_dy;
 
@@ -134,7 +135,7 @@ BOOL CALLBACK EnumChildProc(HWND hwnd, LPARAM lParam)
 		SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_STYLE) & ~WS_EX_WINDOWEDGE);
 		if(lParam == 0)
             SetWindowPos(hwnd, HWND_TOP, 0, 0, g_dx, g_dy, SWP_SHOWWINDOW);
-    SetClassLong(hwnd, GCL_HBRBACKGROUND, CreateSolidBrush(RGB(0,0,0)));
+    SetClassLong(hwnd, GCLP_HBRBACKGROUND, CreateSolidBrush(RGB(0,0,0)));
 	}
 	return TRUE;
 
